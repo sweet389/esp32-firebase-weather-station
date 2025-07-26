@@ -6,8 +6,8 @@ from bmp280 import BMP280
 
 #WIFI
 def wifi_con():
-    ssid = "Quarto Pedro"
-    password = "331301730"
+    ssid = "x"
+    password = "x"
     print(f"[WIFI] Trying connection on {ssid} with pass {password}")
     wifi = network.WLAN(network.STA_IF)
     wifi.active(True)
