@@ -1,4 +1,4 @@
-#Estacao meteorológica utilizando um esp32 + firebase
+# Estacao meteorológica utilizando um esp32 + firebase
 
 Neste projeto e utilizado um sensor de pressao e temperatura (bmp280), em que um Esp32 pega os dados e envia eles para o servidor que pode ser um PC por exemplo, via socket
 
