@@ -2,12 +2,18 @@ import network
 import socket
 import time
 from machine import I2C, Pin
-from bmp280 import BMP280 
+from bmp280 import BMP280
+import json 
+
+#Json
+def json_config():
+    with open("config.json", "rb") as f:
+        json_str = f.read().decode("utf-8")
+        json_file = json.loads(json_str)
+        return json_file["mode"], json_file["ip_socket"], json_file["port_socket"], json_file["ssid"], json_file["password"]
 
 #WIFI
 def wifi_con():
-    ssid = "x"
-    password = "x"
     print(f"[WIFI] Trying connection on {ssid} with pass {password}")
     wifi = network.WLAN(network.STA_IF)
     wifi.active(True)
@@ -20,8 +26,6 @@ def wifi_con():
 #SOCKET
 def socket_connection():
     global s        
-    HOST = '192.168.0.201'
-    PORT = 50000
     print(f"[SOCKET] Connecting on {HOST}:{PORT}")
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -36,6 +40,24 @@ def socket_connection():
         print(f"[SOCKET] Connected on {HOST}:{PORT}")
         return True
     
+def get_delay():
+    delay = s.recv(1024)
+    if not delay:
+        print("[SOCKET] Delay not recived, trying again")
+        time.sleep(1)
+        get_delay()
+    delay = delay.decode()
+    delay = int(delay)
+    print(f"[SOCKET] Delay {delay} recived")
+    try:
+        eco_delay = str(delay)
+        s.sendall(eco_delay.encode())
+    except Exception as e:
+        print(f"[SOCKET] Error {e} on get_delay")
+    finally:
+        return delay
+
+
 def socket_send_data(data=''):
     try: 
         s.sendall(data.encode())
@@ -95,28 +117,27 @@ def main():
     setup_sensor()
     wifi_con()
     sock_bool = socket_connection()
-    print("[SETUP] Everything succeful, starting code1")
+    print("[SETUP] Waiting for the delay")
+    delay = get_delay()
+    print("[SETUP] Everything succeful, starting code")
     if sock_bool:
         while True:
             try:
                 values = get_sensor_values()
                 socket_send_data(values)
-                time.sleep(5)
+                time.sleep(delay)
             except Exception as e:
                 print(f"[MAIN] Error on main\n[MAIN] Error: {e}")
 
 def inialize():
-    x = input("1 for run, 2 for test sensor, 3 for test socket: ")
-    if x == "1":
+    global HOST, PORT, ssid, password
+    mode, HOST, PORT, ssid, password = json_config()
+    if mode == "main":
         main()
-    elif x == "2":
+    elif mode == "sensor-test":
         sensor_test()
-    elif x == "3":
+    elif mode == "socket-test":
         socket_test()
-    else:
-        print(f"[INIT] {x} is not 1, 2 or 3\n[INIT] Please try again")
-        time.sleep(1)
-        inialize()
 
 if __name__ == "__main__":
     inialize()

@@ -5,6 +5,13 @@ import time
 import pprint
 from datetime import datetime
 
+#Json
+def json_config():
+    with open('config.json', "r") as x:
+        json_file = json.load(x)
+        return json_file['mode'], json_file['delay_mins'], json_file['ip_socket'], json_file['port_socket'], json_file['url']
+### ---------------
+
 #data dias e tals
 def update_datatime():   
     data_atual = datetime.today()
@@ -15,7 +22,7 @@ def update_datatime():
 conn = None 
 def setup_socket():
     print("[SOCKET] Initializing socket...")
-    Host, Port = '192.168.0.201', 50000
+    Host, Port = ip_socket, port_socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((Host, Port))
     s.listen()
@@ -23,6 +30,17 @@ def setup_socket():
     global conn
     conn, addr = s.accept()
     print(f"[SOCKET] Connection established with {addr}")
+
+def send_delay(timeout):
+    timeout = str(timeout)
+    conn.sendall(str.encode(timeout))
+    eco = conn.recv(1024)
+    if not eco:
+        print("[SOCKET] Error trying to send delay, trying again")
+        time.sleep(1)
+        send_delay(int(timeout))    
+    eco = eco.decode()
+    print(f"[SOCKET] {eco} is the delay returned by the esp32")
 
 def update_data():
     try:
@@ -68,9 +86,9 @@ def process_data(updated_data):
 # Enviando para o Firebase
 def send_to_firebase(data):
     try:
-        url = "https://teste-473ad-default-rtdb.firebaseio.com/atual.json"
+        _url = f"{url}atual.json"
         headers = {"Content-Type": "application/json"}
-        response = requests.put(url, data=json.dumps(data), headers=headers)
+        response = requests.post(_url, data=json.dumps(data), headers=headers)
         if response.status_code == 200:
             print(f"[Firebase] Status code: {response.status_code}.")
             time.sleep(0.3)
@@ -84,8 +102,8 @@ def send_to_firebase(data):
 # Recebendo do Firebase
 def receive_from_firebase(id):
     try:
-        url = f"https://teste-473ad-default-rtdb.firebaseio.com/{id}.json"
-        response = requests.get(url)
+        _url = f"{url}{id}.json"
+        response = requests.get(_url)
         if response.status_code == 200:
             print(f"[Firebase] Status code: {response.status_code}.")
             data = response.json()
@@ -102,33 +120,30 @@ def receive_from_firebase(id):
 #------
 
 # Main function
-def main(turns):
+def main(timeout):
     x = 0
     setup_socket()
-    while turns >= x:
+    send_delay(timeout)
+    while True:
         updated_data = update_data()
         if updated_data:
             processed_data = process_data(updated_data)
             if processed_data:
                 send_to_firebase(processed_data)
         x += 1        
-        time.sleep(1)
-    print(f"[MAIN] The {turns} finished")
-    inialize()
+        time.sleep(0.5)
+
 
 def inialize():
-    value = input("1 for start | 2 for test | 3 for GET: ")
-    if value == "1":
-        turns = int(input("[Started] How many turn do you want? "))
-        if type(turns) == int:
-            print(f"[Started] Main with {turns}")
-            main(turns)
-        else:
-            inialize()
-    elif value == "2":
+    global mode, delay, ip_socket, port_socket, url
+    mode, delay, ip_socket, port_socket, url = json_config()
+    if mode == "main":
+        print(f"[Started] Main with {delay} minutes delay")
+        main(delay * 60)
+    elif mode == "test":
         print("[Started] Test")
         test_firebase()
-    elif value == "3":
+    elif mode == "get":
         receive_from_firebase(input("ID: "))
 
 def test_firebase():
