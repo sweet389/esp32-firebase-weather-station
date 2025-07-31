@@ -88,7 +88,7 @@ def send_to_firebase(data):
     try:
         _url = f"{url}atual.json"
         headers = {"Content-Type": "application/json"}
-        response = requests.post(_url, data=json.dumps(data), headers=headers)
+        response = requests.put(_url, data=json.dumps(data), headers=headers)
         if response.status_code == 200:
             print(f"[Firebase] Status code: {response.status_code}.")
             time.sleep(0.3)
